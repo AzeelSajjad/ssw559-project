@@ -1,0 +1,36 @@
+{
+  "name": "devsecops-sample-app",
+  "version": "1.0.0",
+  "description": "Sample web application for AI-Enhanced DevSecOps Pipeline — SSW 559 team project",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "jest --coverage --forceExit",
+    "test:ci": "jest --coverage --forceExit --ci",
+    "lint": "eslint src/ --ext .js"
+  },
+  "dependencies": {
+    "express": "4.17.1",
+    "lodash": "4.17.11",
+    "prom-client": "14.2.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.0",
+    "supertest": "^6.3.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ],
+    "coverageReporters": ["text", "lcov", "clover"]
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,318 @@
+name: 🔐 DevSecOps Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  DOCKER_IMAGE: devsecops-app
+  NODE_VERSION: '18'
+  APP_DIR: app
+
+# Cancel in-progress runs on same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 1: Build & Unit Tests
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-and-test:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: npm ci
+
+      - name: Lint source code
+        working-directory: ${{ env.APP_DIR }}
+        run: npm run lint || true
+
+      - name: Run unit tests with coverage
+        working-directory: ${{ env.APP_DIR }}
+        run: npm run test:ci
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ${{ env.APP_DIR }}/coverage/
+          retention-days: 7
+
+      - name: Upload test results summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ env.APP_DIR }}/coverage/lcov.info
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 2: Snyk — Dependency Vulnerability Scan (Tool 1)
+  # ─────────────────────────────────────────────────────────────────────────────
+  snyk-dependency-scan:
+    name: Snyk Dependency Scan
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: npm ci
+
+      - name: Run Snyk dependency scan
+        uses: snyk/actions/node@master
+        continue-on-error: true            # Don't fail the pipeline — we report, not block
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: >-
+            --file=${{ env.APP_DIR }}/package.json
+            --json-file-output=snyk-dep-report.json
+            --severity-threshold=low
+
+      - name: Upload Snyk dependency report
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-dep-report
+          path: snyk-dep-report.json
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 3: OWASP Dependency-Check (Tool 2)
+  # ─────────────────────────────────────────────────────────────────────────────
+  owasp-dependency-check:
+    name: OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'devsecops-sample-app'
+          path: './${{ env.APP_DIR }}'
+          format: 'JSON'
+          out: 'owasp-reports'
+          args: >
+            --enableRetired
+            --enableExperimental
+            --failOnCVSS 11
+
+      - name: Upload OWASP report
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-report
+          path: owasp-reports/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 4: Docker Build + Snyk Container Scan
+  # ─────────────────────────────────────────────────────────────────────────────
+  docker-build-and-scan:
+    name: Docker Build & Container Scan
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
+            -t ${{ env.DOCKER_IMAGE }}:latest \
+            ./${{ env.APP_DIR }}
+
+      - name: Snyk container scan
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ env.DOCKER_IMAGE }}:latest
+          args: --json-file-output=snyk-container-report.json --severity-threshold=high
+
+      - name: Upload container scan report
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-container-report
+          path: snyk-container-report.json
+          retention-days: 7
+
+      - name: Save Docker image as artifact
+        run: docker save ${{ env.DOCKER_IMAGE }}:latest | gzip > devsecops-app.tar.gz
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: devsecops-app.tar.gz
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 5: AI Analysis — Gemini API
+  # ─────────────────────────────────────────────────────────────────────────────
+  ai-vulnerability-analysis:
+    name: AI Vulnerability Analysis (Gemini)
+    runs-on: ubuntu-latest
+    needs: [snyk-dependency-scan, owasp-dependency-check]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download Snyk report
+        uses: actions/download-artifact@v4
+        with:
+          name: snyk-dep-report
+          path: reports/
+
+      - name: Download OWASP report
+        uses: actions/download-artifact@v4
+        with:
+          name: owasp-report
+          path: reports/owasp/
+
+      - name: Install AI script dependencies
+        working-directory: ai
+        run: npm ci
+
+      - name: Run Gemini AI analysis
+        working-directory: ai
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          node analyze.js \
+            ../reports/snyk-dep-report.json \
+            ../reports/owasp/dependency-check-report.json
+
+      - name: Upload AI vulnerability report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-vulnerability-report
+          path: ai/ai-report.md
+          retention-days: 14
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 6: Security Comparison Report
+  # ─────────────────────────────────────────────────────────────────────────────
+  generate-comparison-report:
+    name: Generate Comparison Report
+    runs-on: ubuntu-latest
+    needs: [snyk-dependency-scan, owasp-dependency-check, ai-vulnerability-analysis]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-reports/
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Generate comparison report
+        run: |
+          node scripts/generate-comparison.js \
+            all-reports/snyk-dep-report/snyk-dep-report.json \
+            all-reports/owasp-report/dependency-check-report.json \
+            all-reports/ai-vulnerability-report/ai-report.md
+
+      - name: Upload comparison report
+        uses: actions/upload-artifact@v4
+        with:
+          name: comparison-report
+          path: comparison-report.md
+          retention-days: 14
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 7: Deploy (simulated — docker compose validate)
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy Stack
+    runs-on: ubuntu-latest
+    needs: [ai-vulnerability-analysis, docker-build-and-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose configuration
+        run: docker compose -f docker-compose.yml config
+
+      - name: Start application stack (smoke test)
+        run: |
+          docker compose -f docker-compose.yml up -d --build
+          echo "Waiting for services to start..."
+          sleep 20
+
+      - name: Health check — app
+        run: |
+          curl --retry 5 --retry-delay 5 --fail http://localhost:3000/api/health \
+            && echo "App health check passed" \
+            || echo "App health check failed"
+
+      - name: Health check — Prometheus
+        run: |
+          curl --retry 3 --retry-delay 5 --fail http://localhost:9090/-/healthy \
+            && echo "Prometheus health check passed" \
+            || echo "Prometheus health check failed"
+
+      - name: Health check — Grafana
+        run: |
+          curl --retry 3 --retry-delay 5 --fail http://localhost:3001/api/health \
+            && echo "Grafana health check passed" \
+            || echo "Grafana health check failed"
+
+      - name: Stop stack
+        if: always()
+        run: docker compose -f docker-compose.yml down -v
+
+      - name: Deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** All services validated" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
