@@ -209,10 +209,6 @@ jobs:
           name: owasp-report
           path: reports/owasp/
 
-      - name: Install AI script dependencies
-        working-directory: ai
-        run: npm ci
-
       - name: Run Gemini AI analysis
         working-directory: ai
         env:
