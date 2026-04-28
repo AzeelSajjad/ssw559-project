@@ -1,5 +1,5 @@
 /**
- * AI Vulnerability Analyzer
+ * AI Vulnerability Analyzer!
  * Uses Google Gemini API to analyze vulnerability scan results from Snyk and OWASP
  * and generate a human-readable remediation report.
  *
