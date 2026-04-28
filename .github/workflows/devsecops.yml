@@ -249,7 +249,7 @@ jobs:
 
       - name: Generate comparison report
         run: |
-          node scripts/generate-comparison.js \
+          node scripts/generate-comparison.cjs \
             all-reports/snyk-dep-report/snyk-dep-report.json \
             all-reports/owasp-report/dependency-check-report.json \
             all-reports/ai-vulnerability-report/ai-report.md
