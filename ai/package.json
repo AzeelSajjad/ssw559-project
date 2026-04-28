@@ -1,0 +1,11 @@
+{
+  "name": "ai-vulnerability-analyzer",
+  "version": "1.0.0",
+  "description": "Gemini AI-powered vulnerability analysis for DevSecOps pipeline",
+  "main": "analyze.js",
+  "scripts": {
+    "analyze": "node analyze.js"
+  },
+  "dependencies": {},
+  "license": "MIT"
+}
