@@ -235,6 +235,4 @@ The AI report is saved as a GitHub Actions artifact (`ai-vulnerability-report`) 
 
 ## License
 
-MIT — for academic use only. 
- 
- 
+MIT — for academic use only.
