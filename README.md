@@ -237,4 +237,5 @@ The AI report is saved as a GitHub Actions artifact (`ai-vulnerability-report`) 
 
 MIT — for academic use only.
 #   p i p e l i n e   t r i g g e r  
+ #   p i p e l i n e   t r i g g e r  
  
