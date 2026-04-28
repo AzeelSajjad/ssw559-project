@@ -19,12 +19,12 @@ Developer Push
       │
       ▼
 ┌─────────────────────────────────────────────────────┐
-│              GitHub Actions Pipeline                 │
+│              GitHub Actions Pipeline                │
 │                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌───────────────────┐ │
-│  │ Build &  │  │  Snyk    │  │  OWASP Dependency │ │
-│  │  Tests   │─▶│  Scan    │  │      Check        │ │
-│  └──────────┘  └────┬─────┘  └────────┬──────────┘ │
+│  ┌──────────┐  ┌──────────┐  ┌───────────────────┐  │
+│  │ Build &  │  │  Snyk    │  │  OWASP Dependency │  │
+│  │  Tests   │─>│  Scan    │  │      Check        │  │
+│  └──────────┘  └────┬─────┘  └────────┬──────────┘  │
 │                     │                 │             │
 │                     └────────┬────────┘             │
 │                              ▼                      │
@@ -230,18 +230,6 @@ The pipeline uses **Google Gemini 1.5 Flash** to:
 7. Prioritize remediation actions for the development team
 
 The AI report is saved as a GitHub Actions artifact (`ai-vulnerability-report`) after every pipeline run.
-
----
-
-## Team Contributions
-
-| Member | Primary Responsibilities |
-|--------|--------------------------|
-| Jaden Fernandes | CI/CD Pipeline (GitHub Actions), tool integration |
-| Ryan Raymundo | Unit tests, ESLint, code quality |
-| Azeel Sajjad | Docker, docker-compose, containerization |
-| Edzel Roque | Monitoring (Prometheus + Grafana), dashboard |
-| Lucas Ha | AI integration (Gemini), report generation |
 
 ---
 
