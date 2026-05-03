@@ -8,7 +8,7 @@
 
 ## Overview
 
-This project designs and evaluates an AI-enhanced DevSecOps pipeline using a sample Node.js web application. It compares two security scanning tools (Snyk and OWASP Dependency-Check), integrates Google Gemini AI for vulnerability analysis and remediation suggestions, and provides real-time monitoring via Prometheus and Grafana.
+This project designs and evaluates an AI-enhanced DevSecOps pipeline using a sample Node.js web application. It compares two security scanning tools (Snyk and OWASP Dependency-Check), integrates Anthropic Claude AI for vulnerability analysis and remediation suggestions, and provides real-time monitoring via Prometheus and Grafana.
 
 ---
 
@@ -29,7 +29,7 @@ Developer Push
 │                     └────────┬────────┘             │
 │                              ▼                      │
 │                    ┌──────────────────┐             │
-│                    │  Gemini AI       │             │
+│                    │  Claude AI       │             │
 │                    │  Analysis        │             │
 │                    └────────┬─────────┘             │
 │                             ▼                       │
@@ -117,7 +117,7 @@ ssw559-project/
 │       └── dashboards/
 │           └── devsecops-dashboard.json   # Grafana dashboard
 ├── ai/
-│   ├── analyze.js                 # Gemini API vulnerability analyzer
+│   ├── analyze.js                 # Anthropic Claude API vulnerability analyzer
 │   └── package.json
 ├── scripts/
 │   └── generate-comparison.js     # Snyk vs OWASP comparison report
@@ -139,7 +139,7 @@ ssw559-project/
 | `snyk-dependency-scan` | Snyk npm dependency scan | build-and-test |
 | `owasp-dependency-check` | OWASP NVD-based scan | build-and-test |
 | `docker-build-and-scan` | Build image + Snyk container scan | build-and-test |
-| `ai-vulnerability-analysis` | Gemini AI analysis of scan results | snyk + owasp |
+| `ai-vulnerability-analysis` | Claude AI analysis of scan results | snyk + owasp |
 | `generate-comparison-report` | Snyk vs OWASP comparison doc | snyk + owasp + AI |
 | `deploy` | Validate + smoke-test full stack | AI + docker |
 
@@ -168,7 +168,7 @@ Go to your repository → **Settings** → **Secrets and variables** → **Actio
 | Secret Name | Description | Where to Get It |
 |-------------|-------------|-----------------|
 | `SNYK_TOKEN` | Snyk API authentication token | [app.snyk.io](https://app.snyk.io) → Account Settings → API Token |
-| `GEMINI_API_KEY` | Google Gemini API key | [aistudio.google.com](https://aistudio.google.com) → Get API Key |
+| `ANTHROPIC_API_KEY` | Anthropic Claude API key | [console.anthropic.com](https://console.anthropic.com) → API Keys |
 | `NVD_API_KEY` | (Optional) NVD API key for faster OWASP scans | [nvd.nist.gov/developers/request-an-api-key](https://nvd.nist.gov/developers/request-an-api-key) |
 
 ---
@@ -219,7 +219,7 @@ The pre-provisioned dashboard includes:
 
 ## AI Integration
 
-The pipeline uses **Google Gemini 1.5 Flash** to:
+The pipeline uses **Anthropic Claude Haiku (claude-haiku-4-5-20251001)** to:
 
 1. Parse JSON reports from both Snyk and OWASP
 2. Identify critical and high-severity vulnerabilities
