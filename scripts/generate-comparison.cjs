@@ -155,7 +155,7 @@ For **compliance and audit trails**, **OWASP Dependency-Check** is preferred due
 
 ## AI Analysis Summary
 
-${aiReport ? '> *Full AI analysis is appended below. See the ai-vulnerability-report artifact for the complete Gemini-generated report.*' : '> *AI report not available — configure GEMINI_API_KEY secret to enable.*'}
+${aiReport ? '> *Full AI analysis is appended below. See the ai-vulnerability-report artifact for the complete Claude-generated report.*' : '> *AI report not available — configure ANTHROPIC_API_KEY secret to enable.*'}
 
 ---
 

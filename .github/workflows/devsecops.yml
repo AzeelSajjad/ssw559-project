@@ -181,10 +181,10 @@ jobs:
           retention-days: 1
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 5: AI Analysis — Gemini API
+  # JOB 5: AI Analysis — Anthropic Claude API
   # ─────────────────────────────────────────────────────────────────────────────
   ai-vulnerability-analysis:
-    name: AI Vulnerability Analysis (Gemini)
+    name: AI Vulnerability Analysis (Claude)
     runs-on: ubuntu-latest
     needs: [snyk-dependency-scan, owasp-dependency-check]
 
@@ -209,10 +209,10 @@ jobs:
           name: owasp-report
           path: reports/owasp/
 
-      - name: Run Gemini AI analysis
+      - name: Run Claude AI analysis
         working-directory: ai
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           node analyze.js \
             ../reports/snyk-dep-report.json \

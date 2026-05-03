@@ -1,10 +1,10 @@
 /**
- * AI Vulnerability Analyzer!
- * Uses Google Gemini API to analyze vulnerability scan results from Snyk and OWASP
+ * AI Vulnerability Analyzer
+ * Uses Anthropic Claude API to analyze vulnerability scan results from Snyk and OWASP
  * and generate a human-readable remediation report.
  *
  * Usage:
- *   GEMINI_API_KEY=<key> node analyze.js <snyk-report.json> <owasp-report.json>
+ *   ANTHROPIC_API_KEY=<key> node analyze.js <snyk-report.json> <owasp-report.json>
  */
 
 'use strict';
@@ -14,9 +14,9 @@ const fs    = require('fs');
 const path  = require('path');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL   = 'gemini-2.0-flash';
-const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const ANTHROPIC_MODEL   = 'claude-haiku-4-5-20251001';
+const ANTHROPIC_URL     = 'https://api.anthropic.com/v1/messages';
 const OUTPUT_FILE    = path.join(__dirname, 'ai-report.md');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -67,26 +67,25 @@ function extractOwaspVulns(report) {
   return { count: vulns.length, vulns };
 }
 
-function callGeminiApi(prompt) {
+function callAnthropicApi(prompt) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature:     0.2,
-        maxOutputTokens: 4096,
-        topK:            40,
-        topP:            0.95,
-      },
+      model:       ANTHROPIC_MODEL,
+      max_tokens:  4096,
+      temperature: 0.2,
+      messages: [{ role: 'user', content: prompt }],
     });
 
-    const url = new URL(GEMINI_URL);
+    const url = new URL(ANTHROPIC_URL);
     const options = {
       hostname: url.hostname,
-      path:     url.pathname + url.search,
+      path:     url.pathname,
       method:   'POST',
       headers:  {
-        'Content-Type':   'application/json',
-        'Content-Length': Buffer.byteLength(body),
+        'x-api-key':         ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+        'content-length':    Buffer.byteLength(body),
       },
     };
 
@@ -96,15 +95,15 @@ function callGeminiApi(prompt) {
       res.on('end', () => {
         try {
           const parsed = JSON.parse(data);
-          if (parsed.error) {
-            reject(new Error(`Gemini API error: ${parsed.error.message}`));
+          if (parsed.type === 'error') {
+            reject(new Error(`Anthropic API error: ${parsed.error.message}`));
             return;
           }
-          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!text) reject(new Error('No text content in Gemini response'));
+          const text = parsed.content?.[0]?.text;
+          if (!text) reject(new Error('No text content in Anthropic response'));
           else resolve(text);
         } catch (e) {
-          reject(new Error(`Failed to parse Gemini response: ${e.message}`));
+          reject(new Error(`Failed to parse Anthropic response: ${e.message}`));
         }
       });
     });
@@ -112,7 +111,7 @@ function callGeminiApi(prompt) {
     req.on('error', reject);
     req.setTimeout(60000, () => {
       req.destroy();
-      reject(new Error('Gemini API request timed out'));
+      reject(new Error('Anthropic API request timed out'));
     });
     req.write(body);
     req.end();
@@ -230,7 +229,7 @@ The application contains known exploitable vulnerabilities (Prototype Pollution 
 5. **[Medium-term]** Add pre-commit hook to run \`npm audit\` locally before push
 
 ## 7. AI Analysis Confidence
-**Confidence: Medium** — This is a fallback report generated without the Gemini API (API key not configured). Set the \`GEMINI_API_KEY\` secret in your GitHub repository for full AI-powered analysis.
+**Confidence: Medium** — This is a fallback report generated without the Anthropic API (API key not configured). Set the \`ANTHROPIC_API_KEY\` secret in your GitHub repository for full AI-powered analysis.
 `;
 }
 
@@ -256,19 +255,19 @@ async function main() {
 
   let analysisBody;
 
-  if (GEMINI_API_KEY) {
-    console.log('📡  Calling Gemini API...');
+  if (ANTHROPIC_API_KEY) {
+    console.log('📡  Calling Anthropic Claude API...');
     try {
       const prompt = buildPrompt(snyk, owasp);
-      analysisBody = await callGeminiApi(prompt);
-      console.log('✅  Gemini analysis complete');
+      analysisBody = await callAnthropicApi(prompt);
+      console.log('✅  Claude analysis complete');
     } catch (err) {
-      console.error(`❌  Gemini API failed: ${err.message}`);
+      console.error(`❌  Anthropic API failed: ${err.message}`);
       console.log('⚙️  Falling back to rule-based report...');
       analysisBody = fallbackReport(snyk, owasp);
     }
   } else {
-    console.warn('⚠️  GEMINI_API_KEY not set — generating rule-based fallback report');
+    console.warn('⚠️  ANTHROPIC_API_KEY not set — generating rule-based fallback report');
     analysisBody = fallbackReport(snyk, owasp);
   }
 
@@ -276,7 +275,7 @@ async function main() {
   const fullReport = `# 🔐 AI-Generated Vulnerability Analysis Report
 
 > **Generated:** ${timestamp}  
-> **AI Model:** Google Gemini 1.5 Flash  
+> **AI Model:** Anthropic Claude Haiku (claude-haiku-4-5-20251001)
 > **Pipeline:** GitHub Actions — DevSecOps CI/CD  
 > **Project:** SSW 559 — AI-Enhanced DevSecOps Pipeline  
 > **Team:** Jaden Fernandes · Ryan Raymundo · Azeel Sajjad · Edzel Roque · Lucas Ha  
